@@ -40,7 +40,7 @@ def get_relation_dict(kg):
 
 
 def get_paths(args):
-    np.random.seed(555)
+    np.random.seed(123)
     data_dir = './data/' + args.dataset + '/'
     ratings_np = load_ratings(data_dir)
     train_set, eval_set, test_set = data_split(ratings_np, args.ratio)

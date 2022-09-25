@@ -170,7 +170,7 @@ def eval_ctr(model, pairs, paths_dict, p, user_list, batch_size):
     pred_np[pred_np < 0.5] = 0
     pred_label = pred_np.tolist()
     acc = accuracy_score(true_label, pred_label)
-    return round(auc, 3), round(acc, 3)
+    return auc, acc
 
 
 def get_data(pairs, paths_dict, user_list, p):
@@ -218,7 +218,7 @@ def get_data(pairs, paths_dict, user_list, p):
 
 
 def train(args, is_topk=False):
-    np.random.seed(555)
+    np.random.seed(123)
     data_dir = './data/' + args.dataset + '/'
     train_set = np.load(data_dir + str(args.ratio) + '_train_set.npy').tolist()
     eval_set = np.load(data_dir + str(args.ratio) + '_eval_set.npy').tolist()
@@ -227,7 +227,7 @@ def train(args, is_topk=False):
     entity_list = np.load(data_dir + '_entity_list.npy').tolist()
     _, _, n_relation = load_kg(data_dir)
     n_entity = len(entity_list)
-    rec = np.load(data_dir + str(args.ratio) + '_rec.npy', allow_pickle=True).item()
+
     paths_dict = np.load(data_dir + str(args.ratio) + '_3_path_dict.npy', allow_pickle=True).item()
     user_list = list(get_records(train_set).keys())
     model = MCRec(n_entity, args.embedding_dim, args.predict_factor_dim, args.p)
@@ -282,15 +282,11 @@ def train(args, is_topk=False):
         eval_auc, eval_acc = eval_ctr(model, eval_set, paths_dict, args.p, user_list, args.batch_size)
         test_auc, test_acc = eval_ctr(model, test_set, paths_dict, args.p, user_list, args.batch_size)
 
-        print('epoch: %d \t train_auc: %.3f \t train_acc: %.3f \t '
-              'eval_auc: %.3f \t eval_acc: %.3f \t test_auc: %.3f \t test_acc: %.3f \t' %
+        print('epoch: %d \t train_auc: %.4f \t train_acc: %.4f \t '
+              'eval_auc: %.4f \t eval_acc: %.4f \t test_auc: %.4f \t test_acc: %.4f \t' %
               ((epoch + 1), train_auc, train_acc, eval_auc, eval_acc, test_auc, test_acc), end='\t')
 
         precision_list = []
-        if is_topk:
-            scores = get_scores(model, rec, paths_dict, args.p)
-            precision_list = get_all_metrics(scores, test_records)[0]
-            print(precision_list, end='\t')
 
         train_auc_list.append(train_auc)
         train_acc_list.append(train_acc)
@@ -304,8 +300,8 @@ def train(args, is_topk=False):
 
     indices = eval_auc_list.index(max(eval_auc_list))
     print(args.dataset, end='\t')
-    print('train_auc: %.3f \t train_acc: %.3f \t eval_auc: %.3f \t eval_acc: %.3f \t '
-          'test_auc: %.3f \t test_acc: %.3f \t' %
+    print('train_auc: %.4f \t train_acc: %.4f \t eval_auc: %.4f \t eval_acc: %.4f \t '
+          'test_auc: %.4f \t test_acc: %.4f \t' %
           (train_auc_list[indices], train_acc_list[indices], eval_auc_list[indices], eval_acc_list[indices],
            test_auc_list[indices], test_acc_list[indices]), end='\t')
 
