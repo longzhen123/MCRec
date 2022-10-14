@@ -3,10 +3,8 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import time
-
 from sklearn.metrics import roc_auc_score, accuracy_score
-
-from src.evaluate import get_all_metrics
+from src.evaluate import get_hit, get_ndcg
 from src.load_base import get_records, load_kg
 
 
@@ -124,9 +122,9 @@ class MCRec(nn.Module):
         return meta_path_embeddings
 
 
-def get_scores(model, rec, paths_dict, p):
+def eval_topk(model, rec, paths_dict, p, topk):
+    HR, NDCG = [], []
     model.eval()
-    scores = dict()
     user_list = list(rec.keys())
     for user in rec:
         pairs = [[user, item, -1] for item in rec[user]]
@@ -134,18 +132,13 @@ def get_scores(model, rec, paths_dict, p):
 
         predict_np = model(users, items, paths_list).cpu().detach().numpy()
 
-        i = 0
-        item_scores = dict()
+        item_scores = {items[i]: predict_np[i] for i in range(len(pairs))}
+        item_list = list(dict(sorted(item_scores.items(), key=lambda x: x[1], reverse=True)).keys())[: topk]
+        HR.append(get_hit(items[-1], item_list))
+        NDCG.append(get_ndcg(items[-1], item_list))
 
-        for item in rec[user]:
-
-            item_scores[item] = predict_np[i]
-            i += 1
-
-        sorted_item_scores = sorted(item_scores.items(), key=lambda x: x[1], reverse=True)
-        scores[user] = [i[0] for i in sorted_item_scores]
     model.train()
-    return scores
+    return np.mean(HR), np.mean(NDCG)
 
 
 def eval_ctr(model, pairs, paths_dict, p, user_list, batch_size):
@@ -165,7 +158,7 @@ def eval_ctr(model, pairs, paths_dict, p, user_list, batch_size):
     true_label = [pair[2] for pair in pairs]
     auc = roc_auc_score(true_label, pred_label)
 
-    pred_np  = np.array(pred_label)
+    pred_np = np.array(pred_label)
     pred_np[pred_np >= 0.5] = 1
     pred_np[pred_np < 0.5] = 0
     pred_label = pred_np.tolist()
@@ -223,7 +216,7 @@ def train(args, is_topk=False):
     train_set = np.load(data_dir + str(args.ratio) + '_train_set.npy').tolist()
     eval_set = np.load(data_dir + str(args.ratio) + '_eval_set.npy').tolist()
     test_set = np.load(data_dir + str(args.ratio) + '_test_set.npy').tolist()
-    test_records = get_records(test_set)
+    rec = np.load(data_dir + str(args.ratio) + '_rec.npy.', allow_pickle=True).item()
     entity_list = np.load(data_dir + '_entity_list.npy').tolist()
     _, _, n_relation = load_kg(data_dir)
     n_entity = len(entity_list)
@@ -252,7 +245,8 @@ def train(args, is_topk=False):
     eval_acc_list = []
     test_auc_list = []
     test_acc_list = []
-    all_precision_list = []
+    HR_list = []
+    NDCG_list = []
 
     for epoch in range(args.epochs):
         loss_sum = 0
@@ -286,7 +280,10 @@ def train(args, is_topk=False):
               'eval_auc: %.4f \t eval_acc: %.4f \t test_auc: %.4f \t test_acc: %.4f \t' %
               ((epoch + 1), train_auc, train_acc, eval_auc, eval_acc, test_auc, test_acc), end='\t')
 
-        precision_list = []
+        HR, NDCG = 0, 0
+        if is_topk:
+            HR, NDCG = eval_topk(model, rec, paths_dict, args.p, args.topk)
+            print('HR: %.4f NDCG: %.4f' % (HR, NDCG), end='\t')
 
         train_auc_list.append(train_auc)
         train_acc_list.append(train_acc)
@@ -294,7 +291,9 @@ def train(args, is_topk=False):
         eval_acc_list.append(eval_acc)
         test_auc_list.append(test_auc)
         test_acc_list.append(test_acc)
-        all_precision_list.append(precision_list)
+        HR_list.append(HR)
+        NDCG_list.append(NDCG)
+
         end = time.clock()
         print('time: %d' % (end - start))
 
@@ -305,6 +304,6 @@ def train(args, is_topk=False):
           (train_auc_list[indices], train_acc_list[indices], eval_auc_list[indices], eval_acc_list[indices],
            test_auc_list[indices], test_acc_list[indices]), end='\t')
 
-    print(all_precision_list[indices])
+    print('HR: %.4f \t NDCG: %.4f' % (HR_list[indices], NDCG_list[indices]))
 
     return eval_auc_list[indices], eval_acc_list[indices], test_auc_list[indices], test_acc_list[indices]

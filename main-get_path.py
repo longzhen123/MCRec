@@ -52,6 +52,7 @@ def get_paths(args):
     rec = get_rec(train_records, eval_records, test_records, item_set)
     kg, entity_list = construct_kg(data_dir, train_records, user_set)
     relation_dict = get_relation_dict(kg)
+    # print(len(entity_list))
 
     path_dict = dict()
     new_train_set = []
@@ -63,8 +64,8 @@ def get_paths(args):
 
         paths = [path for path in list(nx.all_simple_paths(kg, user, item, cutoff=args.path_len)) if (len(path) == args.path_len + 1)]
 
-        if len(paths) > 50:
-            indices = np.random.choice(len(paths), 50, replace=False)
+        if len(paths) > 64:
+            indices = np.random.choice(len(paths), 64, replace=False)
             paths = [paths[i] for i in indices]
 
         path_dict[(user, item)] = paths
@@ -79,8 +80,8 @@ def get_paths(args):
         paths = [path for path in list(nx.all_simple_paths(kg, user, item, cutoff=args.path_len)) if
                  (len(path) == args.path_len + 1)]
 
-        if len(paths) > 50:
-            indices = np.random.choice(len(paths), 50, replace=False)
+        if len(paths) > 64:
+            indices = np.random.choice(len(paths), 64, replace=False)
             paths = [paths[i] for i in indices]
 
         path_dict[(user, item)] = paths
@@ -95,8 +96,8 @@ def get_paths(args):
         paths = [path for path in list(nx.all_simple_paths(kg, user, item, cutoff=args.path_len)) if
                  (len(path) == args.path_len + 1)]
 
-        if len(paths) > 50:
-            indices = np.random.choice(len(paths), 50, replace=False)
+        if len(paths) > 64:
+            indices = np.random.choice(len(paths), 64, replace=False)
             paths = [paths[i] for i in indices]
 
         path_dict[(user, item)] = paths
@@ -109,8 +110,8 @@ def get_paths(args):
 
             paths = [path for path in list(nx.all_simple_paths(kg, new_user, item, cutoff=args.path_len)) if (len(path) == args.path_len + 1)]
 
-            if len(paths) > 50:
-                indices = np.random.choice(len(paths), 50, replace=False)
+            if len(paths) > 64:
+                indices = np.random.choice(len(paths), 64, replace=False)
                 paths = [paths[i] for i in indices]
 
             path_dict[(new_user, item)] = paths
